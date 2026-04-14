@@ -1,7 +1,1 @@
-{
-  "@quasar/testing-unit-jest": {
-    "options": [
-      "majestic"
-    ]
-  }
-}
+{}

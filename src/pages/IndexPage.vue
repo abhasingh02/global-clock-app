@@ -31,8 +31,19 @@
             <q-card-section class="row items-center no-wrap">
               <div class="col">
                 <div class="text-h6">{{ loc.city }}</div>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  size="xs"
+                  color="grey-7"
+                  icon="close"
+                  class="absolute-top-right q-ma-xs"
+                  @click="removeClock(loc.zone)"
+                />
                 <div class="text-subtitle2 text-grey-7">{{ formatOffset(loc.zone) }}</div>
               </div>
+
               <div class="col-auto text-right">
                 <div class="text-h4 font-mono">{{ formatTime(loc.zone) }}</div>
                 <div class="text-caption text-grey-6">{{ formatDate(loc.zone) }}</div>
@@ -43,20 +54,26 @@
 
         <div v-else :key="'analog'" class="row q-col-gutter-lg justify-center">
           <div v-for="loc in locations" :key="loc.zone" class="col-6 col-sm-4 col-md-3">
-            <q-card class="analog-grid-card text-center q-pa-md shadow-3">
+            <q-card class="analog-grid-card text-center q-pa-md shadow-3 relative-position">
+              <q-btn
+                flat
+                round
+                dense
+                size="xs"
+                color="grey-7"
+                icon="close"
+                class="absolute-top-right q-ma-xs"
+                @click="removeClock(loc.zone)"
+              />
+
               <div class="analog-clock q-mx-auto q-mb-md">
                 <div class="clock-face">
-                  <!-- Numbers -->
                   <div v-for="n in 12" :key="n" class="number" :style="getNumberStyle(n)">
                     {{ n }}
                   </div>
-
-                  <!-- Hands -->
                   <div class="hand hour-hand" :style="getHourStyle(loc.zone)"></div>
                   <div class="hand min-hand" :style="getMinStyle(loc.zone)"></div>
                   <div class="hand sec-hand" :style="getSecStyle(loc.zone)"></div>
-
-                  <!-- Center -->
                   <div class="center-dot"></div>
                 </div>
               </div>
@@ -83,7 +100,6 @@
             label="Search City or Region"
             :options="timezoneOptions"
             @filter="filterFn"
-            hint="Type to search"
           />
         </q-card-section>
         <q-card-actions align="right">
@@ -92,19 +108,36 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    <q-dialog v-model="showDeleteDialog">
+      <q-card style="min-width: 300px">
+        <q-card-section
+          ><div class="text-h6">Do you want to remove {{ selectedCity }} city?</div></q-card-section
+        >
+
+        <q-card-actions align="right">
+          <q-btn flat label="No" color="primary" v-close-popup />
+          <q-btn flat label="Yes" color="red" @click="confirmRemoveClock" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { DateTime } from 'luxon'
+import { useQuasar } from 'quasar'
 
-// --- State ---
+const $q = useQuasar()
+
+// --- State & Initialization ---
+const showDeleteDialog = ref(false)
+const selectedZone = ref('')
+const selectedCity = ref('')
 const currentTime = ref(DateTime.now())
 const showAddDialog = ref(false)
 const showAnalog = ref(false)
 const newCity = ref(null)
-
 const majorCities = [
   'Africa/Cairo',
   'Africa/Johannesburg',
@@ -161,12 +194,27 @@ const majorCities = [
 const allTimezones = Intl.supportedValuesOf('timeZone')
 const timezoneOptions = ref(majorCities)
 
-const locations = ref([
-  { city: 'Local Time', zone: DateTime.now().zoneName },
-  { city: 'New York', zone: 'America/New_York' },
-  { city: 'London', zone: 'Europe/London' },
-  { city: 'Tokyo', zone: 'Asia/Tokyo' },
-])
+// Persistence: Load from LocalStorage or use defaults
+const saved = localStorage.getItem('world-clocks')
+const locations = ref(
+  saved
+    ? JSON.parse(saved)
+    : [
+        { city: 'Local Time', zone: DateTime.now().zoneName },
+        { city: 'New York', zone: 'America/New_York' },
+        { city: 'London', zone: 'Europe/London' },
+        { city: 'Tokyo', zone: 'Asia/Tokyo' },
+      ],
+)
+
+// Persistence: Watch and Save
+watch(
+  locations,
+  (newVal) => {
+    localStorage.setItem('world-clocks', JSON.stringify(newVal))
+  },
+  { deep: true },
+)
 
 // --- Timer Logic ---
 let timer = null
@@ -179,11 +227,10 @@ onUnmounted(() => {
   clearInterval(timer)
 })
 
-// Clock numbers positioning
+// --- Analog Style Helpers ---
 const getNumberStyle = (n) => {
   const angle = n * 30 * (Math.PI / 180)
   const radius = 40
-
   return {
     position: 'absolute',
     top: `${50 - Math.cos(angle) * radius}%`,
@@ -193,7 +240,6 @@ const getNumberStyle = (n) => {
     fontWeight: 'bold',
   }
 }
-// --- Analog Logic ---
 const getHourStyle = (zone) => {
   const time = currentTime.value.setZone(zone)
   const deg = (time.hour % 12) * 30 + time.minute * 0.5
@@ -210,7 +256,7 @@ const getSecStyle = (zone) => {
   return { transform: `translateX(-50%) rotate(${deg}deg)` }
 }
 
-// --- List Logic ---
+// --- Interaction Logic ---
 const filterFn = (val, update) => {
   update(() => {
     if (val === '') {
@@ -225,15 +271,45 @@ const filterFn = (val, update) => {
 }
 
 const addLocation = () => {
+  console.log('newCity', newCity)
+
   if (newCity.value) {
     const cityName = newCity.value.split('/').pop().replace(/_/g, ' ')
     if (!locations.value.find((l) => l.zone === newCity.value)) {
       locations.value.push({ city: cityName, zone: newCity.value })
+    } else {
+      $q.notify({ message: 'City already in list', color: 'warning' })
     }
     newCity.value = null
   }
 }
 
+const removeClock = (zone) => {
+  if (DateTime.now().zoneName === zone) {
+    $q.notify({
+      message: 'Local time can not be deleted',
+      color: 'negative',
+      position: 'bottom',
+      timeout: 1000,
+    })
+    return
+  }
+  showDeleteDialog.value = true
+  selectedZone.value = zone
+  selectedCity.value = selectedZone.value.split('/').pop().replace(/_/g, ' ')
+}
+const confirmRemoveClock = () => {
+  locations.value = locations.value.filter((loc) => loc.zone !== selectedZone.value)
+  $q.notify({
+    message: `Clock for ${selectedCity.value} removed`,
+    color: 'negative',
+    icon: 'delete',
+    position: 'bottom',
+    timeout: 1000,
+  })
+}
+
+// --- Formatting Helpers ---
 const formatTime = (zone) => currentTime.value.setZone(zone).toFormat('HH:mm:ss')
 const formatDate = (zone) => currentTime.value.setZone(zone).toFormat('ccc, LLL dd')
 const formatOffset = (zone) => {
@@ -243,6 +319,68 @@ const formatOffset = (zone) => {
 </script>
 
 <style scoped>
+.clock-card {
+  border-radius: 12px;
+}
+.font-mono {
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+}
+.analog-grid-card {
+  border-radius: 18px;
+  background: #fdfdfd;
+  min-height: 220px;
+}
+.analog-clock {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 60%, #ecf0f1);
+  border: 4px solid #2c3e50;
+  position: relative;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+.clock-face {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.hand {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  transform-origin: bottom;
+  border-radius: 4px;
+}
+.hour-hand {
+  width: 4px;
+  height: 28px;
+  background: #2c3e50;
+  z-index: 3;
+}
+.min-hand {
+  width: 3px;
+  height: 38px;
+  background: #7f8c8d;
+  z-index: 2;
+}
+.sec-hand {
+  width: 2px;
+  height: 45px;
+  background: #e74c3c;
+  z-index: 1;
+}
+.center-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: #2c3e50;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
 .clock-card {
   border-radius: 12px;
 }

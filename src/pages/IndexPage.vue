@@ -1,138 +1,151 @@
 <template>
-  <q-page class="bg-grey-2 q-pa-md">
-    <div class="header-container q-mb-xl">
-      <div class="row items-center justify-between no-wrap">
-        <div class="col">
-          <h1 class="text-h4 text-weight-bolder q-ma-none letter-spacing-tight">
-            World <span class="text-primary">Clock</span>
-          </h1>
-          <div class="text-caption text-grey-6 text-uppercase q-ml-xs">Global Time Sync</div>
-        </div>
+  <transition
+    appear
+    enter-active-class="animated fadeIn"
+    leave-active-class="animated fadeOut"
+    mode="out-in"
+  >
+    <q-page class="bg-grey-2 q-pa-md">
+      <div class="header-container q-mb-xl">
+        <div class="row items-center justify-between no-wrap">
+          <div class="col">
+            <h1 class="text-h4 text-weight-bolder q-ma-none letter-spacing-tight">
+              World <span class="text-primary">Clock</span>
+            </h1>
+            <div class="text-caption text-grey-6 text-uppercase q-ml-xs">Global Time Sync</div>
+          </div>
 
-        <div class="row q-gutter-x-sm items-center">
-          <q-btn-toggle
-            v-model="showAnalog"
-            push
-            glossy
-            toggle-color="primary"
-            :options="[
-              { label: 'Analog', value: true },
-              { label: 'Digital', value: false },
-            ]"
-          />
-          <q-btn
-            fab-mini
-            color="primary"
-            icon="add"
-            @click="showAddDialog = true"
-            class="shadow-3 add-btn"
-          />
+          <div class="row q-gutter-x-sm items-center">
+            <q-btn-toggle
+              v-model="showAnalog"
+              push
+              glossy
+              toggle-color="primary"
+              :options="[
+                { label: 'Analog', value: true },
+                { label: 'Digital', value: false },
+              ]"
+            />
+            <q-btn
+              fab-mini
+              color="primary"
+              icon="add"
+              @click="showAddDialog = true"
+              class="shadow-3 add-btn"
+            />
+          </div>
         </div>
       </div>
-    </div>
 
-    <transition
-      appear
-      enter-active-class="animated fadeIn"
-      leave-active-class="animated fadeOut"
-      mode="out-in"
-    >
-      <div v-if="!showAnalog" :key="'digital'" class="column q-gutter-y-md">
-        <q-card v-for="loc in locations" :key="loc.zone" class="clock-card shadow-1">
-          <q-card-section class="row items-center no-wrap">
-            <div class="col">
-              <div class="text-h6 text-weight-bold">{{ loc.city }}</div>
+      <transition
+        appear
+        enter-active-class="animated fadeIn"
+        leave-active-class="animated fadeOut"
+        mode="out-in"
+      >
+        <div v-if="!showAnalog" :key="'digital'" class="column q-gutter-y-md">
+          <q-card v-for="loc in locations" :key="loc.zone" class="clock-card shadow-1">
+            <q-card-section class="row items-center no-wrap">
+              <div class="col">
+                <div class="text-h6 text-weight-bold">{{ loc.city }}</div>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  size="xs"
+                  color="grey-7"
+                  icon="close"
+                  class="absolute-top-right q-ma-xs"
+                  @click="removeClock(loc)"
+                />
+                <div class="text-subtitle2 text-grey-7">{{ formatOffset(loc.zone) }}</div>
+              </div>
+              <div class="col-auto text-right">
+                <div class="text-h4 font-mono text-primary">{{ formatTime(loc.zone) }}</div>
+                <div class="text-caption text-grey-6">{{ formatDate(loc.zone) }}</div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <div v-else :key="'analog'" class="row q-col-gutter-lg justify-center">
+          <div v-for="loc in locations" :key="loc.zone" class="col-6 col-sm-4 col-md-3">
+            <q-card class="analog-grid-card text-center q-pa-md shadow-2 relative-position">
               <q-btn
                 flat
                 round
                 dense
                 size="xs"
-                color="grey-7"
+                color="grey-6"
                 icon="close"
                 class="absolute-top-right q-ma-xs"
                 @click="removeClock(loc)"
               />
-              <div class="text-subtitle2 text-grey-7">{{ formatOffset(loc.zone) }}</div>
-            </div>
-            <div class="col-auto text-right">
-              <div class="text-h4 font-mono text-primary">{{ formatTime(loc.zone) }}</div>
-              <div class="text-caption text-grey-6">{{ formatDate(loc.zone) }}</div>
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
 
-      <div v-else :key="'analog'" class="row q-col-gutter-lg justify-center">
-        <div v-for="loc in locations" :key="loc.zone" class="col-6 col-sm-4 col-md-3">
-          <q-card class="analog-grid-card text-center q-pa-md shadow-2 relative-position">
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              color="grey-6"
-              icon="close"
-              class="absolute-top-right q-ma-xs"
-              @click="removeClock(loc)"
-            />
-
-            <div class="analog-clock q-mx-auto q-mb-md">
-              <div class="clock-face">
-                <div v-for="n in 12" :key="n" class="number" :style="getNumberStyle(n)">
-                  {{ n }}
+              <div class="analog-clock q-mx-auto q-mb-md">
+                <div class="clock-face">
+                  <div v-for="n in 12" :key="n" class="number" :style="getNumberStyle(n)">
+                    {{ n }}
+                  </div>
+                  <div class="hand hour-hand" :style="getHourStyle(loc.zone)"></div>
+                  <div class="hand min-hand" :style="getMinStyle(loc.zone)"></div>
+                  <div class="hand sec-hand" :style="getSecStyle(loc.zone)"></div>
+                  <div class="center-dot"></div>
                 </div>
-                <div class="hand hour-hand" :style="getHourStyle(loc.zone)"></div>
-                <div class="hand min-hand" :style="getMinStyle(loc.zone)"></div>
-                <div class="hand sec-hand" :style="getSecStyle(loc.zone)"></div>
-                <div class="center-dot"></div>
               </div>
-            </div>
-            <div class="text-subtitle1 text-weight-bold">{{ loc.city }}</div>
-            <div class="text-caption text-grey-7">{{ formatTimeShort(loc.zone) }}</div>
-          </q-card>
+              <div class="text-subtitle1 text-weight-bold">{{ loc.city }}</div>
+              <div class="text-caption text-grey-7">{{ formatTimeShort(loc.zone) }}</div>
+            </q-card>
+          </div>
         </div>
-      </div>
-    </transition>
+      </transition>
 
-    <q-dialog v-model="showAddDialog">
-      <q-card style="min-width: 320px; border-radius: 15px">
-        <q-card-section class="bg-primary text-white">
-          <div class="text-h6">Add New City</div>
-        </q-card-section>
-        <q-card-section class="q-pt-lg">
-          <q-select
-            filled
-            v-model="newCity"
-            use-input
-            input-debounce="0"
-            label="Search Timezone"
-            :options="timezoneOptions"
-            @filter="filterFn"
-            behavior="menu"
-          />
-        </q-card-section>
-        <q-card-actions align="right" class="q-pb-md q-pr-md">
-          <q-btn flat label="Cancel" color="grey-7" v-close-popup />
-          <q-btn unelevated label="Add Clock" color="primary" @click="addLocation" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-    <q-dialog v-model="showDeleteDialog">
-      <q-card style="min-width: 320px; border-radius: 15px">
-        <q-card-section class="bg-primary text-white">
-          <div class="text-h6">Delete City</div>
-        </q-card-section>
-        <q-card-section
-          ><div class="text-h6">Do you want to remove {{ selectedCity }} city?</div></q-card-section
-        >
+      <q-dialog v-model="showAddDialog">
+        <q-card style="min-width: 320px; border-radius: 15px">
+          <q-card-section class="bg-primary text-white">
+            <div class="text-h6">Add New City</div>
+          </q-card-section>
+          <q-card-section class="q-pt-lg">
+            <q-select
+              filled
+              v-model="newCity"
+              use-input
+              input-debounce="0"
+              label="Search Timezone"
+              :options="timezoneOptions"
+              @filter="filterFn"
+              behavior="menu"
+            />
+          </q-card-section>
+          <q-card-actions align="right" class="q-pb-md q-pr-md">
+            <q-btn flat label="Cancel" color="grey-7" v-close-popup />
+            <q-btn
+              unelevated
+              label="Add Clock"
+              color="primary"
+              @click="addLocation"
+              v-close-popup
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="primary" v-close-popup />
-          <q-btn flat label="Delete" color="red" @click="confirmRemoveClock" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-  </q-page>
+      <q-dialog v-model="showDeleteDialog">
+        <q-card style="min-width: 320px; border-radius: 15px">
+          <q-card-section class="bg-primary text-white">
+            <div class="text-h6">Delete City</div>
+          </q-card-section>
+          <q-card-section>
+            <div class="text-h6">Do you want to remove {{ selectedCity }} city?</div>
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Cancel" color="primary" v-close-popup />
+            <q-btn flat label="Delete" color="red" @click="confirmRemoveClock" v-close-popup />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+    </q-page>
+  </transition>
 </template>
 
 <script setup>
